@@ -26,4 +26,4 @@ This Python project allows you to monitor the real-time status of a train using 
 ## How to Run the Project:
 1. Clone the repository:
    ```bash
-   git clone https://github.com/GioeleGregorini/MonitoraggioTreno.git
+   git clone https://github.com/GioeleGregorini/TrenItaliaTrainChecker.git
