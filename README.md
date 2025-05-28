@@ -2,7 +2,6 @@
 
 **TrenItalia Train Checker** è un'app desktop in Python con interfaccia Tkinter che ti permette di monitorare lo stato di un treno Trenitalia in tempo reale. Ricevi aggiornamenti automatici ogni 5 secondi, notifiche di ritardo e informazioni su orari di partenza e rilevamenti, tutto in un'interfaccia ispirata ai colori ufficiali Trenitalia.
 
-🔗 [Vai alla repository](https://github.com/GioeleGregorini/TrenItaliaTrainChecker)
 
 ---
 
