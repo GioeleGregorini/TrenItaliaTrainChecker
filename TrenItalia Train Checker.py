@@ -14,7 +14,7 @@ notifica_mostrata = False
 def aggiorna_treno(numero_treno, text_widget):
     global notifica_mostrata
     url = f"http://www.viaggiatreno.it/vt_pax_internet/mobile/numero?numeroTreno={numero_treno}"
-    
+
     response = requests.get(url)
     if response.status_code == 200:
         soup = BeautifulSoup(response.text, 'html.parser')
@@ -29,19 +29,27 @@ def aggiorna_treno(numero_treno, text_widget):
 
         ritardo_minuti = 0
 
-        for div in divs:
-            testo = div.get_text(strip=True)
-            if "ritardo" in testo and "Ultimo rilevamento" in testo:
-                match_ritardo = re.search(r'con\s+(\d+)\s+minuti', testo)
-                if match_ritardo:
-                    ritardo_minuti = int(match_ritardo.group(1))
-                    ritardo_info = f"{ritardo_minuti} minuti di ritardo"
+        # Unisce tutto il testo utile dei div evidenziati
+        testo_completo = " ".join(div.get_text(strip=True) for div in divs)
 
-                match_rilevamento = re.search(r'Ultimo rilevamento a (.+?alle ore \d{2}:\d{2})', testo)
-                if match_rilevamento:
-                    rilevamento_info = match_rilevamento.group(1)
-                break
-        
+        # Estrai ritardo o anticipo
+        match_ritardo = re.search(r'con\s+(\d+)\s+minuti\s+di\s+(ritardo|anticipo)', testo_completo, re.IGNORECASE)
+        if match_ritardo:
+            minuti = int(match_ritardo.group(1))
+            tipo = match_ritardo.group(2).lower()
+            unità = "minuto" if minuti == 1 else "minuti"
+            if tipo == "ritardo":
+                ritardo_minuti = minuti
+                ritardo_info = f"{minuti} {unità} di ritardo"
+            else:
+                ritardo_minuti = -minuti
+                ritardo_info = f"{minuti} {unità} di anticipo"
+
+        # Estrai info ultimo rilevamento
+        match_rilevamento = re.search(r'Ultimo rilevamento a (.+?alle ore \d{2}:\d{2})', testo_completo)
+        if match_rilevamento:
+            rilevamento_info = match_rilevamento.group(1)
+
         # Nome treno
         h1 = soup.find('h1')
         if h1:
@@ -60,27 +68,51 @@ def aggiorna_treno(numero_treno, text_widget):
                 if partenza_match_eff:
                     partenza_effettiva = partenza_match_eff.group(1)
 
-        # Orario massimo (alle 17:00 + ritardo)
+        # Orario massimo: 17:00 + solo ritardo (se positivo)
         orario_iniziale = datetime.strptime("17:00", "%H:%M")
-        orario_massimo = orario_iniziale + timedelta(minutes=ritardo_minuti)
+        if ritardo_minuti > 0:
+            orario_massimo = orario_iniziale + timedelta(minutes=ritardo_minuti)
+        else:
+            orario_massimo = orario_iniziale
 
-        # Notifica ritardo
+        # Notifica solo se il ritardo supera la soglia
         if ritardo_minuti >= SOGLIA_RITARDO_SUPERIORE and not notifica_mostrata:
             messagebox.showwarning("Ritardo eccessivo", f"⚠️ Il treno ha {ritardo_minuti} minuti di ritardo!")
             notifica_mostrata = True
         elif ritardo_minuti < SOGLIA_RITARDO_RESET:
             notifica_mostrata = False
 
-        # Output grafico
+        # Aggiungi i tag per colorare solo la scritta dello stato
         text_widget.config(state="normal")
         text_widget.delete(1.0, tk.END)
-        text_widget.insert(tk.END, f"Treno {nome_treno}\n\nPartenza prevista: {partenza_prevista}\n\nPartenza effettiva: {partenza_effettiva}\n\nRitardo: {ritardo_info}\n\nUltimo rilevamento: {rilevamento_info}")
+
+        # Definisci i tag
+        text_widget.tag_configure("ritardo", foreground="red")
+        text_widget.tag_configure("anticipo_orario", foreground="green")
+
+        # Scrittura del testo con tag applicati solo per lo stato
+        text_widget.insert(tk.END, f"Treno {nome_treno}\n\nPartenza prevista: {partenza_prevista}\n\nPartenza effettiva: {partenza_effettiva}\n\n")
+
+        # Stato del treno con il colore appropriato
+        if ritardo_minuti > 0:
+            text_widget.insert(tk.END, "Stato del Treno: ", "ritardo")
+            text_widget.insert(tk.END, f"{ritardo_info}\n\n", "ritardo")
+        elif ritardo_minuti < 0:
+            text_widget.insert(tk.END, "Stato del Treno: ", "anticipo_orario")
+            text_widget.insert(tk.END, f"{ritardo_info}\n\n", "anticipo_orario")
+        else:
+            text_widget.insert(tk.END, "Stato del Treno: ", "anticipo_orario")  
+            text_widget.insert(tk.END, f"Treno in Orario\n\n", "anticipo_orario")
+
+        text_widget.insert(tk.END, f"Ultimo rilevamento: {rilevamento_info}")
         text_widget.config(state="disabled")
+
     else:
         text_widget.config(state="normal")
         text_widget.delete(1.0, tk.END)
         text_widget.insert(tk.END, "Errore nel recupero dei dati dal sito.")
         text_widget.config(state="disabled")
+
 
 # Avvia monitoraggio
 def avvia_monitoraggio():
@@ -92,7 +124,6 @@ def avvia_monitoraggio():
         reset_output()
         aggiorna_treno(treno_attivo, output_text)
         aggiorna_periodicamente()
-
 
 # Aggiorna ogni 5 secondi
 def aggiorna_periodicamente():
