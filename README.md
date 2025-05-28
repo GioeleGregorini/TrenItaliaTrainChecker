@@ -50,27 +50,13 @@ python trenitalia_checker.py
 - [Requests](https://docs.python-requests.org/) – per l'accesso al sito ViaggiaTreno
 - [BeautifulSoup4](https://www.crummy.com/software/BeautifulSoup/) – per il parsing HTML
 - Regex e datetime per l’elaborazione dei dati
-
----
-
-## 📷 Screenshot
-
-*(Aggiungi qui un'immagine se vuoi mostrarla)*
-
+  
 ---
 
 ## ⚠️ Note importanti
 
 - Il monitoraggio si basa sul sito [ViaggiaTreno.it](http://www.viaggiatreno.it/).
 - Se la struttura HTML del sito cambia, sarà necessario aggiornare il parser.
-
----
-
-## 👤 Autore
-
-**Gioele Gregorini**
-
-🔗 GitHub: [@GioeleGregorini](https://github.com/GioeleGregorini)
 
 ---
 
