@@ -25,7 +25,6 @@ def aggiorna_treno(numero_treno, text_widget):
         rilevamento_info = "Informazione sul rilevamento non trovata"
         partenza_prevista = "Partenza prevista non trovata"
         partenza_effettiva = "Partenza effettiva non trovata"
-        orario_massimo = "Orario massimo non calcolato"
 
         ritardo_minuti = 0
 
@@ -67,13 +66,6 @@ def aggiorna_treno(numero_treno, text_widget):
                 partenza_match_eff = re.search(r'Partenza effettiva\s*:\s*(\d{2}:\d{2})', testo)
                 if partenza_match_eff:
                     partenza_effettiva = partenza_match_eff.group(1)
-
-        # Orario massimo: 17:00 + solo ritardo (se positivo)
-        orario_iniziale = datetime.strptime("17:00", "%H:%M")
-        if ritardo_minuti > 0:
-            orario_massimo = orario_iniziale + timedelta(minutes=ritardo_minuti)
-        else:
-            orario_massimo = orario_iniziale
 
         
         # Valori predefiniti
@@ -169,14 +161,7 @@ def aggiorna_treno(numero_treno, text_widget):
         # Aggiungi dati ultimo rilevamento
         text_widget.insert(tk.END, f"Ultimo rilevamento: {rilevamento_info}")
 
-        # Aggiungi l'uscita massima solo se il numero del treno è 8623
-        if numero_treno == "8623":
-            text_widget.insert(tk.END, f"\n\nOrario massimo per uscire: {orario_massimo.strftime('%H:%M')}")
-            # Modifica la dimensione della finestra se l'orario massimo è presente
-            root.geometry("400x500")
-        else:
-            # Modifica la dimensione della finestra se l'orario massimo non è presente
-            root.geometry("400x450")
+        root.geometry("400x450")
 
         text_widget.config(state="disabled")
 
