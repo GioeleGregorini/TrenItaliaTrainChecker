@@ -75,12 +75,71 @@ def aggiorna_treno(numero_treno, text_widget):
         else:
             orario_massimo = orario_iniziale
 
+        
+        # Valori predefiniti
+        ultima_fermata = "Non trovata"
+        arrivo_programmato = "Non trovato"
+        arrivo_effettivo = "Non trovato"
+
+        # Ciclo sui div principali
+        divs = soup.find_all('div')
+        for i in range(len(divs)):
+            div = divs[i]
+
+            # Cerca la sezione dell'ultima fermata
+            if div.get_text(strip=True) == "Ultima fermata effettuata:":
+                if i + 1 < len(divs):
+                    next_div = divs[i + 1]
+                    if "corpocentrale" in next_div.get("class", []):
+                        h2 = next_div.find("h2")
+                        if h2:
+                            ultima_fermata = h2.get_text(strip=True)
+
+                        p_tags = next_div.find_all("p")
+                        for p in p_tags:
+                            text = p.get_text(strip=True)
+                            if "Arrivo Programmato" in text:
+                                strong = p.find("strong")
+                                if strong:
+                                    arrivo_programmato = strong.get_text(strip=True)
+                            elif "Arrivo effettivo" in text:
+                                strong = p.find("strong")
+                                if strong:
+                                    arrivo_effettivo = strong.get_text(strip=True)
+                break  # Trovata, basta
+        
+        # Estrai info ultimo rilevamento
+        match_rilevamento = re.search(r'Ultimo rilevamento a (.+?alle ore \d{2}:\d{2})', testo_completo)
+        if match_rilevamento:
+            rilevamento_info = match_rilevamento.group(1)
+
         # Notifica solo se il ritardo supera la soglia
         if ritardo_minuti >= SOGLIA_RITARDO_SUPERIORE and not notifica_mostrata:
-            messagebox.showwarning("Ritardo eccessivo", f"⚠️ Il treno ha {ritardo_minuti} minuti di ritardo!")
+            messagebox.showwarning("Ritardo eccessivo", f"⚠️ Il treno {nome_treno} ha {ritardo_minuti} minuti di ritardo!")
             notifica_mostrata = True
-        elif ritardo_minuti < SOGLIA_RITARDO_RESET:
+        elif ritardo_minuti < SOGLIA_RITARDO_RESET and notifica_mostrata:
+            messagebox.showwarning("Ritardo eccessivo", f"✅ Il treno {nome_treno} sta recuperando il ritardo!")
             notifica_mostrata = False
+
+
+
+        # Controlla se il treno non è ancora partito o è arrivato
+        for div in divs:
+            testo = div.get_text(strip=True).lower()
+            if "non è ancora partito" in testo:
+                ultima_fermata = "Il treno non è ancora partito"
+                rilevamento_info = "Il treno non è ancora partito"
+                ritardo_info = "Il treno non è ancora partito"
+                arrivo_programmato = "Il treno non è ancora partito"
+                arrivo_effettivo = "Il treno non è ancora partito"
+                break
+            elif "arrivato" in testo:
+                ultima_fermata = "Il treno è arrivato a destinazione"
+                rilevamento_info = "Il treno è arrivato a destinazione"
+                arrivo_programmato = "Il treno è arrivato a destinazione"
+                arrivo_effettivo = "Il treno è arrivato a destinazione"
+                break
+
 
         # Aggiungi i tag per colorare solo la scritta dello stato
         text_widget.config(state="normal")
@@ -93,6 +152,8 @@ def aggiorna_treno(numero_treno, text_widget):
         # Scrittura del testo con tag applicati solo per lo stato
         text_widget.insert(tk.END, f"Treno {nome_treno}\n\nPartenza prevista: {partenza_prevista}\n\nPartenza effettiva: {partenza_effettiva}\n\n")
 
+        text_widget.insert(tk.END, f"Ultima Fermata: {ultima_fermata}\n\nArrivo programmato: {arrivo_programmato}\n\nArrivo effettivo: {arrivo_effettivo}\n\n")
+
         # Stato del treno con il colore appropriato
         if ritardo_minuti > 0:
             text_widget.insert(tk.END, "Stato del Treno: ", "ritardo")
@@ -104,7 +165,19 @@ def aggiorna_treno(numero_treno, text_widget):
             text_widget.insert(tk.END, "Stato del Treno: ", "anticipo_orario")  
             text_widget.insert(tk.END, f"Treno in Orario\n\n", "anticipo_orario")
 
+
+        # Aggiungi dati ultimo rilevamento
         text_widget.insert(tk.END, f"Ultimo rilevamento: {rilevamento_info}")
+
+        # Aggiungi l'uscita massima solo se il numero del treno è 8623
+        if numero_treno == "8623":
+            text_widget.insert(tk.END, f"\n\nOrario massimo per uscire: {orario_massimo.strftime('%H:%M')}")
+            # Modifica la dimensione della finestra se l'orario massimo è presente
+            root.geometry("400x500")
+        else:
+            # Modifica la dimensione della finestra se l'orario massimo non è presente
+            root.geometry("400x450")
+
         text_widget.config(state="disabled")
 
     else:
@@ -121,9 +194,9 @@ def avvia_monitoraggio():
         global treno_attivo, notifica_mostrata
         treno_attivo = numero_treno
         notifica_mostrata = False
-        reset_output()
-        aggiorna_treno(treno_attivo, output_text)
-        aggiorna_periodicamente()
+        reset_output()  # Reset dell'area di testo prima di fare la ricerca
+        aggiorna_treno(treno_attivo, output_text)  # Aggiorna i dati
+        aggiorna_periodicamente()  # Start del monitoraggio periodico
 
 # Aggiorna ogni 5 secondi
 def aggiorna_periodicamente():
@@ -138,19 +211,24 @@ def reset_output():
         if isinstance(widget, tk.Text):
             widget.destroy()
     global output_text
-    output_text = tk.Text(root, height=12, width=50, wrap=tk.WORD, font=("Helvetica", 12), state="disabled")
+    output_text = tk.Text(root, height=25, width=70, wrap=tk.WORD, font=("Helvetica", 12), state="disabled")  # Più largo e alto
     output_text.pack(pady=10)
 
 # UI principale
 root = tk.Tk()
 root.title("TrenItalia Train Checker")
 root.config(bg="#a7033a")
+root.geometry("400x150")  # Finestra piccola all'inizio
+root.resizable(False, False)  # Finestra non ridimensionabile
+
 
 treno_label = ttk.Label(root, text="Inserisci numero del treno:", font=("Helvetica", 14), background="#a7033a", foreground="#ffffff")
 treno_label.pack(pady=10)
 
 treno_entry = ttk.Entry(root, font=("Helvetica", 12), width=15)
 treno_entry.pack(pady=10)
+
+treno_entry.bind("<Return>", lambda event: avvia_monitoraggio())
 
 avvia_button = ttk.Button(root, text="Avvia Monitoraggio", command=avvia_monitoraggio)
 avvia_button.pack(pady=10)
